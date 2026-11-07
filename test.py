@@ -3,9 +3,9 @@ from entidades.usuario import Usuario
 # Instanciar el repositorio
 repo_usuario = Usuario()
 
-# Crear o actualizar el nodo para un usuario
-nuevo_usuario = repo_usuario.crear(
-    usuario_id="usr_0",
+# Crear el nodo para un usuario
+
+'''nuevo_usuario = repo_usuario.crear(
     nombre="Luis Felipe Carrillo Molina",
     correo="carrillolf@uninorte.edu.co",
     telefono="+57 320 728 0384",
@@ -14,4 +14,13 @@ nuevo_usuario = repo_usuario.crear(
     educacion="Ingeniería de Sistemas - Universidad del Norte",
 )
 
-print("Usuario creado/actualizado exitosamente:", nuevo_usuario)
+print("Usuario creado exitosamente:", nuevo_usuario)'''
+
+# eliminar un usuario por su ID
+'''usuario_id_a_eliminar = "usr_0"  # Reemplaza con el ID del usuario que deseas eliminar
+resultado_eliminacion = repo_usuario.eliminar(usuario_id_a_eliminar)
+print("Resultado de la eliminación:", resultado_eliminacion)'''
+
+from entidades.controller import crear_restricciones_unicidad
+
+crear_restricciones_unicidad()

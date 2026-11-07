@@ -59,6 +59,7 @@ class DatabaseConnection:
 
         # Formatea los resultados en una lista de diccionarios estándar
         return [record.data() for record in records]
+    
 
 # Instancia global para ser reutilizada en toda la aplicación
 db = DatabaseConnection()

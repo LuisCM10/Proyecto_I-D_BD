@@ -1,26 +1,24 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from conexion import db
-
+from entidades.controller import obtener_siguiente_id
 
 class Empresa:
 
-    def crear(self, empresa_id: str, nombre: str, industria: str = "", ubicacion: str = "", tamano: str = "", descripcion: str = "") -> List[Dict[str, Any]]:
-        """Crea o actualiza un nodo Empresa con sus propiedades: 
+    def crear(self, nombre: str, industria: str = "", ubicacion: str = "", tamano: str = "", descripcion: str = "") -> List[Dict[str, Any]]:
+        """Crea un nodo Empresa con sus propiedades: 
         (nombre, industria, ubicación, tamaño, descripción)."""
+        
+        empresa_id = obtener_siguiente_id(entidad="Empresa", prefijo="emp")
+        
         query = """
-        MERGE (e:Empresa {id: $id})
-        ON CREATE SET 
-            e.nombre = $nombre,
-            e.industria = $industria,
-            e.ubicacion = $ubicacion,
-            e.tamano = $tamano,
-            e.descripcion = $descripcion
-        ON MATCH SET 
-            e.nombre = $nombre,
-            e.industria = $industria,
-            e.ubicacion = $ubicacion,
-            e.tamano = $tamano,
-            e.descripcion = $descripcion
+        CREATE (e:Empresa {
+            id: $id,
+            nombre: $nombre,
+            industria: $industria,
+            ubicacion: $ubicacion,
+            tamano: $tamano,
+            descripcion: $descripcion
+        })
         RETURN e
         """
         params = {
@@ -32,6 +30,46 @@ class Empresa:
             "descripcion": descripcion,
         }
         return db.ejecutar_consulta(query, params)
+    
+    def consultar(self, empresa_id: str) -> Optional[Dict[str, Any]]:
+        """Consulta una Empresa por su ID."""
+        query = """
+        MATCH (e:Empresa {id: $id})
+        RETURN e
+        """
+        resultado = db.ejecutar_consulta(
+            query, {"id": empresa_id}, write=False
+        )
+        return resultado[0]["e"] if resultado else None
+
+    def actualizar(self, empresa_id: str, nombre: Optional[str] = None, industria: Optional[str] = None, ubicacion: Optional[str] = None, tamano: Optional[str] = None, descripcion: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Actualiza los campos especificados de una Empresa."""
+        query = """
+        MATCH (e:Empresa {id: $id})
+        SET e.nombre = COALESCE($nombre, e.nombre),
+            e.industria = COALESCE($industria, e.industria),
+            e.ubicacion = COALESCE($ubicacion, e.ubicacion),
+            e.tamano = COALESCE($tamano, e.tamano),
+            e.descripcion = COALESCE($descripcion, e.descripcion)
+        RETURN e
+        """
+        params = {
+            "id": empresa_id,
+            "nombre": nombre,
+            "industria": industria,
+            "ubicacion": ubicacion,
+            "tamano": tamano,
+            "descripcion": descripcion,
+        }
+        return db.ejecutar_consulta(query, params)
+
+    def eliminar(self, empresa_id: str) -> List[Dict[str, Any]]:
+        """Elimina una Empresa y desvincula sus relaciones en el grafo."""
+        query = """
+        MATCH (e:Empresa {id: $id})
+        DETACH DELETE e
+        """
+        return db.ejecutar_consulta(query, {"id": empresa_id})
 
     def publica_oferta(self, empresa_id: str, oferta_id: str) -> List[Dict[str, Any]]:
         """Crea la relación: (:Empresa)-[:PUBLICA]->(:OfertaLaboral)"""

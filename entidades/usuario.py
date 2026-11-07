@@ -1,27 +1,23 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from conexion import db
+from entidades.controller import obtener_siguiente_id
 
 
 class Usuario:
 
-    def crear(self, usuario_id: str, nombre: str, correo: str, telefono: str = "", ubicacion: str = "", experiencia: str = "", educacion: str = "") -> List[Dict[str, Any]]:
-        """Crea o actualiza un nodo Usuario con sus propiedades: (nombre, correo, teléfono, ubicación, experiencia, educación)."""
+    def crear(self, nombre: str, correo: str, telefono: str = "", ubicacion: str = "", experiencia: str = "", educacion: str = "") -> List[Dict[str, Any]]:
+        usuario_id = obtener_siguiente_id(entidad="Usuario", prefijo="usr")
+        """Crea un nodo Usuario con sus propiedades: (nombre, correo, teléfono, ubicación, experiencia, educación)."""
         query = """
-        MERGE (u:Usuario {id: $id})
-        ON CREATE SET 
-            u.nombre = $nombre,
-            u.correo = $correo,
-            u.telefono = $telefono,
-            u.ubicacion = $ubicacion,
-            u.experiencia = $experiencia,
-            u.educacion = $educacion
-        ON MATCH SET 
-            u.nombre = $nombre,
-            u.correo = $correo,
-            u.telefono = $telefono,
-            u.ubicacion = $ubicacion,
-            u.experiencia = $experiencia,
-            u.educacion = $educacion
+        CREATE (u:Usuario {
+            id: $id,
+            nombre: $nombre,
+            correo: $correo,
+            telefono: $telefono,
+            ubicacion: $ubicacion,
+            experiencia: $experiencia,
+            educacion: $educacion
+        })
         RETURN u
         """
         params = {
@@ -34,6 +30,47 @@ class Usuario:
             "educacion": educacion,
         }
         return db.ejecutar_consulta(query, params)
+    
+    def actualizar(self, usuario_id: str, nombre: Optional[str] = None, correo: Optional[str] = None, telefono: Optional[str] = None, ubicacion: Optional[str] = None, experiencia: Optional[str] = None, educacion: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Actualiza la información personal y profesional de un usuario."""
+        query = """
+        MATCH (u:Usuario {id: $id})
+        SET u.nombre = COALESCE($nombre, u.nombre),
+            u.correo = COALESCE($correo, u.correo),
+            u.telefono = COALESCE($telefono, u.telefono),
+            u.ubicacion = COALESCE($ubicacion, u.ubicacion),
+            u.experiencia = COALESCE($experiencia, u.experiencia),
+            u.educacion = COALESCE($educacion, u.educacion)
+        RETURN u
+        """
+        params = {
+            "id": usuario_id,
+            "nombre": nombre,
+            "correo": correo,
+            "telefono": telefono,
+            "ubicacion": ubicacion,
+            "experiencia": experiencia,
+            "educacion": educacion,
+        }
+        return db.ejecutar_consulta(query, params)
+    
+    def consultar(self, usuario_id: str) -> Optional[Dict[str, Any]]:
+        """Consulta un usuario por su ID."""
+        query = """
+        MATCH (u:Usuario {id: $id})
+        RETURN u
+        """
+        resultado = db.ejecutar_consulta(query, {"id": usuario_id}, write=False)
+        return resultado[0]["u"] if resultado else None
+    
+    def eliminar(self, usuario_id: str) -> List[Dict[str, Any]]:
+        """Elimina un usuario y desconecta sus relaciones asociadas en el
+        grafo."""
+        query = """
+        MATCH (u:Usuario {id: $id})
+        DETACH DELETE u
+        """
+        return db.ejecutar_consulta(query, {"id": usuario_id})
 
     def conecta_con(self, usuario_origen_id: str, usuario_destino_id: str) -> List[Dict[str, Any]]:
         """Crea la relación: (:Usuario)-[:CONECTA_CON]->(:Usuario)"""
