@@ -24,6 +24,15 @@ los estudiantes deberán explicar en qué escenarios el modelo de grafos supera 
 *	Generar recomendaciones de contactos, empleos o colaboradores a partir de la estructura del grafo.
 *	Mostrar un panel de analítica: usuarios más influyentes, comunidades detectadas y habilidades más demandadas.
 
+# Preguntas a responder
+*	¿Qué usuarios tienen habilidades similares?
+*	¿Qué contactos en común existen entre dos profesionales?
+*	¿Cuál es la ruta más corta entre un usuario y una empresa?
+*	¿Qué candidatos podrían recomendarse para una oferta según sus conexiones y competencias?
+*	¿Qué proyectos comparten tecnologías o miembros relacionados?
+*	¿Qué habilidades son las más demandadas en las ofertas?
+
+
 # Schema
 ![Schema](schema.png)
 
@@ -35,10 +44,4 @@ Ejecuta el siguiente comando en la terminal de tu entorno virtual:
 
 ```bash
 pip install -r requirements.txt
-```
-
-### Contenido de `requirements.txt`
-```text
-neo4j>=5.0.0
-python-dotenv>=1.0.0
 ```
