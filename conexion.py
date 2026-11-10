@@ -61,10 +61,7 @@ class DatabaseConnection:
             except Exception as e:
                 if intento == max_retries - 1:
                     raise e
-                
-                # --- Lógica de Coldbreak / Backoff ---
-                # Si falló en el segundo intento (intento 1 en base 0), 
-                # pausamos 2 segundos para dar tiempo al servidor antes del 3er intento.
+                # Si falló en el segundo intento (intento 1 en base 0), pausamos 2 segundos para dar tiempo al servidor antes del 3er intento.
                 if intento == 1:
                     tiempo_espera = 2.0
                     print(f" Pausa por falla en el 2do intento. Esperando {tiempo_espera}s antes de probar por 3ra vez...")
