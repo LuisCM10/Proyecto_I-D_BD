@@ -94,12 +94,12 @@ class Usuario:
         params = {"usuario_id": usuario_id, "empresa_id": empresa_id}
         return db.ejecutar_consulta(query, params)
 
-    def tiene_habilidad(self, usuario_id: str, habilidad_id: str) -> List[Dict[str, Any]]:
-        """Crea la relación: (:Usuario)-[:TIENE]->(:Habilidad)"""
+    def posee_habilidad(self, usuario_id: str, habilidad_id: str) -> List[Dict[str, Any]]:
+        """Crea la relación: (:Usuario)-[:POSEE]->(:Habilidad)"""
         query = """
         MATCH (u:Usuario {id: $usuario_id})
         MATCH (h:Habilidad {id: $habilidad_id})
-        MERGE (u)-[r:TIENE]->(h)
+        MERGE (u)-[r:POSEE]->(h)
         RETURN u, r, h
         """
         params = {"usuario_id": usuario_id, "habilidad_id": habilidad_id}

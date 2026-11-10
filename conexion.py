@@ -19,15 +19,19 @@ class DatabaseConnection:
         self._driver: Optional[Driver] = None
 
     def connect(self) -> None:
-        """Inicializa el driver y verifica la conectividad con la base de
-        datos."""
         if self._driver is None:
             auth = (self._username, self._password)
-            self._driver = GraphDatabase.driver(self._uri, auth=auth)
+            # max_connection_lifetime y keep_alive evitan el WinError 10054
+            self._driver = GraphDatabase.driver(
+                self._uri,
+                auth=auth,
+                max_connection_lifetime=60,  # Recicla conexiones viejas cada 60 seg
+                max_connection_pool_size=50,
+                keep_alive=True,  # Mantiene vivos los sockets TCP
+            )
             self.verify_connection()
 
     def verify_connection(self) -> None:
-        """Verifica que las credenciales y la URL sean válidas."""
         if self._driver:
             self._driver.verify_connectivity()
             print(" Conexión a Neo4j establecida correctamente.")
@@ -39,26 +43,27 @@ class DatabaseConnection:
             self._driver = None
             print(" Conexión a Neo4j cerrada.")
 
-    def ejecutar_consulta(self, query: str, parameters: Optional[Dict[str, Any]] = None, write: bool = True,) -> List[Dict[str, Any]]:
-        """Ejecuta una consulta Cypher y retorna los resultados como una lista
-        de diccionarios.
-
-        :param query: Consulta en Cypher a ejecutar.
-        :param parameters: Diccionario con los parámetros de la consulta.
-        :param write: True si modifica la base de datos (CREATE, MERGE, DELETE),
-                      False para consultas de solo lectura (MATCH).
-        :return: Lista de registros mapeados como diccionario Python.
-        """
+    def ejecutar_consulta(self, query: str, parameters: Optional[Dict[str, Any]] = None, write: bool = True, ) -> List[Dict[str, Any]]:
         if self._driver is None:
             self.connect()
 
         routing_mode = (
             RoutingControl.WRITE if write else RoutingControl.READ
         )
-        records, summary, keys = self._driver.execute_query(query_=query, parameters_=parameters or {}, routing_=routing_mode)
 
-        # Formatea los resultados en una lista de diccionarios estándar
-        return [record.data() for record in records]
+        # Reintento simple si la conexión cae a mitad de transacción
+        max_retries = 3
+        for intento in range(max_retries):
+            try:
+                records, summary, keys = self._driver.execute_query(query_=query, parameters_=parameters or {}, routing_=routing_mode)
+                # Formatea los resultados en una lista de diccionarios estándar
+                return [record.data() for record in records]
+            except Exception as e:
+                if intento == max_retries - 1:
+                    raise e
+                print(
+                    f" Reintentando consulta por reconexión ({intento + 1}/{max_retries})..."
+                )
     
 
 # Instancia global para ser reutilizada en toda la aplicación

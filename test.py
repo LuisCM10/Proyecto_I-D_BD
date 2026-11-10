@@ -1,26 +1,33 @@
 from entidades.usuario import Usuario
+from entidades.empresa import Empresa
+
 
 # Instanciar el repositorio
 repo_usuario = Usuario()
+repo_empresa = Empresa()
 
-# Crear el nodo para un usuario
+    
+from conexion import db
 
-'''nuevo_usuario = repo_usuario.crear(
-    nombre="Luis Felipe Carrillo Molina",
-    correo="carrillolf@uninorte.edu.co",
-    telefono="+57 320 728 0384",
-    ubicacion="Barranquilla, Colombia",
-    experiencia="Estudiante de Ingeniería de Sistemas con experiencia en Backend (FastAPI, SQLAlchemy), Analítica de Grafos y Desarrollo Embebido/VHDL",
-    educacion="Ingeniería de Sistemas - Universidad del Norte",
-)
 
-print("Usuario creado exitosamente:", nuevo_usuario)'''
+def vaciar_base_datos() -> None:
+    """Elimina todos los nodos y relaciones existentes en la base de datos de
 
-# eliminar un usuario por su ID
-'''usuario_id_a_eliminar = "usr_0"  # Reemplaza con el ID del usuario que deseas eliminar
-resultado_eliminacion = repo_usuario.eliminar(usuario_id_a_eliminar)
-print("Resultado de la eliminación:", resultado_eliminacion)'''
+    Neo4j.
+    """
+    query = "MATCH (n) DETACH DELETE n"
 
-from entidades.controller import crear_restricciones_unicidad
+    print(" Eliminando todas las entidades y relaciones de Neo4j...")
+    db.ejecutar_consulta(query)
+    print(" Base de datos vaciada completamente.")
 
-crear_restricciones_unicidad()
+
+if __name__ == "__main__":
+    # Confirmación opcional de seguridad
+    confirmacion = input(
+        "¿Estás seguro de que deseas eliminar TODOS los datos? (s/n): "
+    )
+    if confirmacion.lower() == "s":
+        vaciar_base_datos()
+    else:
+        print("Operación cancelada.")

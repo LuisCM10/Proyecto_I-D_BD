@@ -20,9 +20,9 @@ los estudiantes deberán explicar en qué escenarios el modelo de grafos supera 
 - [x] Registrar empresas y sus ofertas laborales que publican.
 - [x] Relacionar ofertas laborales con las habilidades requeridas.
 - [x] Permitir que un usuario se postule a una oferta.
-- [ ] Consultar caminos y conexiones entre usuarios, empresas y oportunidades laborales.
-- [ ] Generar recomendaciones de contactos, empleos o colaboradores a partir de la estructura del grafo.
-- [ ] Mostrar un panel de analítica: usuarios más influyentes, comunidades detectadas y habilidades más demandadas.
+- [x] Consultar caminos y conexiones entre usuarios, empresas y oportunidades laborales.
+- [x] Generar recomendaciones de contactos, empleos o colaboradores a partir de la estructura del grafo.
+- [x] Mostrar un panel de analítica: usuarios más influyentes, comunidades detectadas y habilidades más demandadas.
 
 # Preguntas a responder
 - [ ] ¿Qué usuarios tienen habilidades similares?
