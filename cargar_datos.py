@@ -1,111 +1,99 @@
-# cargar_datos.py
 
-from conexion import db
-from datos.datos_estructurados import (
-    EMPRESAS, HABILIDADES, TECNOLOGIAS, PROYECTOS, OFERTAS_LABORALES, USUARIOS,
-    RELACIONES_EMPRESA_OFERTA, RELACIONES_EMPRESA_PROYECTO, RELACIONES_PROYECTO_TECNOLOGIA,
-    RELACIONES_OFERTA_HABILIDAD, RELACIONES_USUARIO_USUARIO, RELACIONES_USUARIO_EMPRESA,
-    RELACIONES_USUARIO_HABILIDAD, RELACIONES_USUARIO_PROYECTO, RELACIONES_USUARIO_OFERTA
-)
-from entidades.controller import crear_restricciones_unicidad
+from entidades.usuario import Usuario
 from entidades.empresa import Empresa
 from entidades.habilidad import Habilidad
-from entidades.tecnologia import Tecnologia
 from entidades.proyecto import Proyecto
 from entidades.oferta_laboral import OfertaLaboral
-from entidades.usuario import Usuario
 
-def poblar_base_datos_completa():
-    print("--- 🗑️ 1. Limpiando base de datos ---")
-    db.ejecutar_consulta("MATCH (n) DETACH DELETE n")
-    print(" Base de datos vaciada.\n")
+from datos.datos_estructurados import (
+    EMPRESAS, HABILIDADES, PROYECTOS, OFERTAS_LABORALES, USUARIOS,
+    RELACIONES_EMPRESA_OFERTA, RELACIONES_EMPRESA_PROYECTO, RELACIONES_OFERTA_HABILIDAD,
+    RELACIONES_USUARIO_USUARIO, RELACIONES_USUARIO_EMPRESA, RELACIONES_USUARIO_HABILIDAD,
+    RELACIONES_USUARIO_PROYECTO, RELACIONES_USUARIO_OFERTA
+)
 
-    print("--- 🔒 2. Aplicando restricciones de unicidad ---")
-    crear_restricciones_unicidad()
-    print()
-
-    empresa_model = Empresa()
-    habilidad_model = Habilidad()
-    tecnologia_model = Tecnologia()
-    proyecto_model = Proyecto()
-    oferta_model = OfertaLaboral()
-    usuario_model = Usuario()
+def poblar_base_datos():
+    """Puebla la base de datos con nodos y relaciones según el esquema definido."""
+    empresa = Empresa()
+    habilidad = Habilidad()
+    proyecto = Proyecto()
+    oferta = OfertaLaboral()
+    usuario = Usuario()
+    
 
     map_empresas = []
     map_habilidades = []
-    map_tecnologias = []
     map_proyectos = []
     map_ofertas = []
     map_usuarios = []
 
-    print("--- 📦 3. Creando 5+ Nodos por Entidad ---")
+    print("\n--- 2. Insertando Nodos Entidad ---")
 
+    # Insertar Empresas
     for emp in EMPRESAS:
-        res = empresa_model.crear(**emp)
-        e_id = res[0]["e"]["id"]
-        map_empresas.append(e_id)
-        print(f"✓ Empresa ({e_id}): {emp['nombre']}")
+        nueva = empresa.crear(**emp)
+        map_empresas.append(nueva[0]["e"]["id"])
+    print(f"✓ {len(map_empresas)} Empresas creadas.")
 
+    # Insertar Habilidades
     for hab in HABILIDADES:
-        res = habilidad_model.crear(**hab)
-        h_id = res[0]["h"]["id"]
-        map_habilidades.append(h_id)
-        print(f"✓ Habilidad ({h_id}): {hab['nombre']}")
+        nueva = habilidad.crear(**hab)
+        map_habilidades.append(nueva[0]["h"]["id"])
+    print(f"✓ {len(map_habilidades)} Habilidades creadas.")
 
-    for tec in TECNOLOGIAS:
-        res = tecnologia_model.crear(**tec)
-        t_id = res[0]["t"]["id"]
-        map_tecnologias.append(t_id)
-        print(f"✓ Tecnología ({t_id}): {tec['nombre']}")
-
+    # Insertar Proyectos
     for proy in PROYECTOS:
-        res = proyecto_model.crear(**proy)
-        p_id = res[0]["p"]["id"]
-        map_proyectos.append(p_id)
-        print(f"✓ Proyecto ({p_id}): {proy['nombre']}")
+        nueva = proyecto.crear(**proy)
+        map_proyectos.append(nueva[0]["p"]["id"])
+    print(f"✓ {len(map_proyectos)} Proyectos creados.")
 
+    # Insertar Ofertas Laborales
     for ofe in OFERTAS_LABORALES:
-        res = oferta_model.crear(**ofe)
-        o_id = res[0]["o"]["id"]
-        map_ofertas.append(o_id)
-        print(f"✓ Oferta ({o_id}): {ofe['titulo']}")
+        nueva = oferta.crear(**ofe)
+        map_ofertas.append(nueva[0]["o"]["id"])
+    print(f"✓ {len(map_ofertas)} Ofertas Laborales creadas.")
 
+    # Insertar Usuarios
     for usr in USUARIOS:
-        res = usuario_model.crear(**usr)
-        u_id = res[0]["u"]["id"]
-        map_usuarios.append(u_id)
-        print(f"✓ Usuario ({u_id}): {usr['nombre']}")
+        nueva = usuario.crear(**usr)
+        map_usuarios.append(nueva[0]["u"]["id"])
+    print(f"✓ {len(map_usuarios)} Usuarios creados.")
 
-    print("\n--- 🔗 4. Conectando Relaciones del Grafo ---")
+    print("\n--- 3. Creando Relaciones según el Esquema ---")
 
+    # Empresa -> Oferta Laboral (PUBLICA)
     for idx_emp, idx_ofe in RELACIONES_EMPRESA_OFERTA:
-        empresa_model.publica_oferta(map_empresas[idx_emp], map_ofertas[idx_ofe])
+        empresa.publica_oferta(empresa_id=map_empresas[idx_emp],oferta_id=map_ofertas[idx_ofe])
 
+    # Empresa -> Proyecto (TIENE)
     for idx_emp, idx_proy in RELACIONES_EMPRESA_PROYECTO:
-        empresa_model.tiene_proyecto(map_empresas[idx_emp], map_proyectos[idx_proy])
+        empresa.tiene_proyecto(map_empresas[idx_emp], map_proyectos[idx_proy])
 
-    for idx_proy, idx_tec in RELACIONES_PROYECTO_TECNOLOGIA:
-        proyecto_model.usa_tecnologia(map_proyectos[idx_proy], map_tecnologias[idx_tec])
-
+    # Oferta -> Habilidad (REQUIERE_TENER)
     for idx_ofe, idx_hab in RELACIONES_OFERTA_HABILIDAD:
-        oferta_model.requiere_tener(map_ofertas[idx_ofe], map_habilidades[idx_hab])
+       oferta.requiere_tener(map_ofertas[idx_ofe], map_habilidades[idx_hab])
 
+    # Usuario -> Usuario (CONECTA_CON)
     for idx_u1, idx_u2 in RELACIONES_USUARIO_USUARIO:
-        usuario_model.conecta_con(map_usuarios[idx_u1], map_usuarios[idx_u2])
-
+        usuario.conecta_con(map_usuarios[idx_u1], map_usuarios[idx_u2])
+    
+    # Usuario -> Empresa (TRABAJA_EN)
     for idx_u, idx_emp in RELACIONES_USUARIO_EMPRESA:
-        usuario_model.trabaja_en(map_usuarios[idx_u], map_empresas[idx_emp])
+        usuario.trabaja_en(map_usuarios[idx_u], map_empresas[idx_emp])
 
+    # Usuario -> Habilidad (POSEE)
     for idx_u, idx_hab in RELACIONES_USUARIO_HABILIDAD:
-        usuario_model.posee_habilidad(map_usuarios[idx_u], map_habilidades[idx_hab])
+        usuario.posee_habilidad(map_usuarios[idx_u], map_habilidades[idx_hab])
 
+    # Usuario -> Proyecto (PARTICIPA_EN)
     for idx_u, idx_proy in RELACIONES_USUARIO_PROYECTO:
-        usuario_model.participa_en(map_usuarios[idx_u], map_proyectos[idx_proy])
+        usuario.participa_en(map_usuarios[idx_u], map_proyectos[idx_proy])
 
+    # Usuario -> Oferta (SE_POSTULA_A)
     for idx_u, idx_ofe in RELACIONES_USUARIO_OFERTA:
-        usuario_model.se_postula_a(map_usuarios[idx_u], map_ofertas[idx_ofe])
+        usuario.se_postula_a(map_usuarios[idx_u], map_ofertas[idx_ofe])
 
-    print("\n ¡Poblado completado con éxito! Todas las entidades poseen al menos 5 nodos.")
+    print(" ¡Grafo completado con éxito! Todos los nodos y relaciones han sido vinculados.")
 
 if __name__ == "__main__":
-    poblar_base_datos_completa()
+    poblar_base_datos()

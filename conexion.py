@@ -1,5 +1,4 @@
 import os
-import time
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from neo4j import Driver, GraphDatabase, RoutingControl
@@ -8,9 +7,9 @@ load_dotenv()
 
 
 class DatabaseConnection:
-    """
-    Maneja la conexión a Neo4j.
-    Es utilizada por otras clases para establecer conexión y enviar consultas a la base de datos.
+    """Maneja la conexión a Neo4j.
+
+   Es utilizada por otras clases para establer conexion y enviar consultas a la base de datos.
     """
 
     def __init__(self):
@@ -44,7 +43,7 @@ class DatabaseConnection:
             self._driver = None
             print(" Conexión a Neo4j cerrada.")
 
-    def ejecutar_consulta(self, query: str, parameters: Optional[Dict[str, Any]] = None, write: bool = True) -> List[Dict[str, Any]]:
+    def ejecutar_consulta(self, query: str, parameters: Optional[Dict[str, Any]] = None, write: bool = True, ) -> List[Dict[str, Any]]:
         if self._driver is None:
             self.connect()
 
@@ -52,6 +51,7 @@ class DatabaseConnection:
             RoutingControl.WRITE if write else RoutingControl.READ
         )
 
+        # Reintento simple si la conexión cae a mitad de transacción
         max_retries = 3
         for intento in range(max_retries):
             try:
@@ -61,14 +61,10 @@ class DatabaseConnection:
             except Exception as e:
                 if intento == max_retries - 1:
                     raise e
-                # Si falló en el segundo intento (intento 1 en base 0), pausamos 2 segundos para dar tiempo al servidor antes del 3er intento.
-                if intento == 1:
-                    tiempo_espera = 2.0
-                    print(f" Pausa por falla en el 2do intento. Esperando {tiempo_espera}s antes de probar por 3ra vez...")
-                    time.sleep(tiempo_espera)
-                else:
-                    print(f" Reintentando consulta por reconexión ({intento + 1}/{max_retries})...")
-
+                print(
+                    f" Reintentando consulta por reconexión ({intento + 1}/{max_retries})..."
+                )
+    
 
 # Instancia global para ser reutilizada en toda la aplicación
 db = DatabaseConnection()
