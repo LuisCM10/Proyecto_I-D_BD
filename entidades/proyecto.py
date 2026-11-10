@@ -15,7 +15,7 @@ class Proyecto:
             nombre: $nombre,
             descripcion: $descripcion,
             fecha_inicio: $fecha_inicio,
-            fecha_fin: $fecha_fin,
+            fecha_fin: $fecha_fin
         })
         RETURN p
         """
@@ -24,7 +24,7 @@ class Proyecto:
             "nombre": nombre,
             "descripcion": descripcion,
             "fecha_inicio": fecha_inicio,
-            "fecha_fin": fecha_fin,
+            "fecha_fin": fecha_fin
         }
         return db.ejecutar_consulta(query, params)
     
