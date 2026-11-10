@@ -19,6 +19,10 @@ from jobtogo_operaciones import (
     crear_perfil, actualizar_profesional,
     actualizar_empresa, consultar_postulaciones, postularse,
     publicar_vacante, editar_vacante_propietaria,
+    habilidades_catalogo, ids_habilidades_usuario,
+    actualizar_habilidades_profesional, proyectos_de_empresa,
+    tecnologias_catalogo, crear_proyecto_empresa, editar_proyecto_empresa,
+    revertir_perfil_nuevo,
 )
 from entidades.controller import crear_restricciones_unicidad
 from entidades.usuario import Usuario
@@ -769,18 +773,31 @@ def abrir_sesion(sesion):
     st.rerun()
 
 
-def registrar_desde_formulario(rol, datos):
-    """El registro crea solo un Usuario o Empresa, sin entidad nueva de acceso."""
+def registrar_desde_formulario(rol, datos, habilidades_ids=None):
+    """Registra perfiles existentes y, si corresponde, sus habilidades iniciales."""
     try:
         if rol == 'profesional':
             correo = (datos.get('correo') or '').strip()
             if '@' not in correo or '.' not in correo.rsplit('@', 1)[-1]:
                 st.error('Escribe un correo electrónico válido.')
                 return
+            # Validar las habilidades antes de insertar el nuevo Usuario.
+            ids_seleccionados = list(dict.fromkeys(habilidades_ids or []))
+            catalogo_actual = {h['id'] for h in habilidades_catalogo()}
+            if not set(ids_seleccionados).issubset(catalogo_actual):
+                st.error('El catálogo de habilidades cambió. Actualiza la página.')
+                return
         if not (datos.get('nombre') or '').strip():
             st.error('Escribe el nombre del perfil.')
             return
         id_nuevo = crear_perfil(rol, datos)
+        if rol == 'profesional' and ids_seleccionados:
+            try:
+                actualizar_habilidades_profesional(id_nuevo, ids_seleccionados)
+            except Exception:
+                # Solo se elimina el nodo recién creado si falla su inicialización.
+                revertir_perfil_nuevo('profesional', id_nuevo)
+                raise
         abrir_sesion({'rol': rol, 'id': id_nuevo, 'nombre': datos['nombre']})
     except (ValueError, KeyError) as exc:
         st.error(str(exc))
@@ -835,12 +852,19 @@ def pantalla_login():
                 with col2:
                     educacion = st.text_input('Educación')
                     experiencia = st.text_area('Experiencia', height=100)
+                habilidades_opts = {
+                    f'{h["nombre"]} · {h["id"]}': h['id'] for h in habilidades_catalogo()
+                }
+                seleccion_habilidades = st.multiselect(
+                    'Mis habilidades', list(habilidades_opts),
+                    help='Selecciona las habilidades que ya existen en Job to go.'
+                )
                 if st.form_submit_button('Crear perfil profesional', type='primary', use_container_width=True):
                     registrar_desde_formulario('profesional', {
                         'nombre': nombre.strip(), 'correo': correo.strip(),
                         'telefono': telefono.strip(), 'ubicacion': ubicacion.strip(),
                         'experiencia': experiencia.strip(), 'educacion': educacion.strip(),
-                    })
+                    }, [habilidades_opts[h] for h in seleccion_habilidades])
         else:
             with st.form('jtg_registro_empresa'):
                 nombre = st.text_input('Nombre de la empresa')
@@ -911,9 +935,28 @@ def pagina_profesional(auth, seccion):
         banner('Espacio profesional','Mi perfil','Consulta y actualiza tu información profesional.')
         ficha_perfil(perfil,[('nombre','Nombre'),('correo','Correo'),('telefono','Teléfono'),
                              ('ubicacion','Ubicación'),('experiencia','Experiencia'),('educacion','Educación')])
-        titulo_sec('Mis habilidades')
+        titulo_sec('Mis habilidades', 'Puedes agregarlas o quitarlas desde tu propio perfil')
         habilidades = habilidades_de_usuario(usuario_id)
         st.write(', '.join(h['habilidad'] for h in habilidades) if habilidades else 'Sin habilidades asignadas.')
+        catalogo = habilidades_catalogo()
+        opciones_habilidades = {f'{h["nombre"]} · {h["id"]}': h['id'] for h in catalogo}
+        actuales = set(ids_habilidades_usuario(usuario_id))
+        with st.form('jtg_mis_habilidades'):
+            seleccion = st.multiselect(
+                'Selecciona tus habilidades', list(opciones_habilidades),
+                default=[nombre for nombre, id_h in opciones_habilidades.items() if id_h in actuales],
+                help='Estas habilidades se vinculan a tu perfil en Neo4j mediante POSEE.'
+            )
+            if st.form_submit_button('Guardar mis habilidades', type='primary'):
+                try:
+                    resultado = actualizar_habilidades_profesional(
+                        usuario_id, [opciones_habilidades[h] for h in seleccion]
+                    )
+                    if resultado:
+                        st.success('Habilidades actualizadas.')
+                        st.rerun()
+                except Exception as exc:
+                    st.error(f'No se pudieron actualizar tus habilidades: {exc}')
         with st.expander('Editar mi perfil'):
             with st.form('jtg_editar_perfil_profesional'):
                 nombre = st.text_input('Nombre completo',value=perfil.get('nombre',''))
@@ -991,6 +1034,73 @@ def pagina_profesional(auth, seccion):
         ver_tabla(datos,'Todavía no hay contactos profesionales vinculados a tu perfil.')
 
 
+def pagina_proyectos_empresa(empresa_id):
+    banner('Gestión empresarial', 'Mis proyectos',
+           'Crea y administra proyectos vinculados a tu empresa y a sus tecnologías.')
+    proyectos = proyectos_de_empresa(empresa_id)
+    titulo_sec('Proyectos registrados', 'Solo proyectos asociados a esta empresa')
+    ver_tabla(proyectos, 'Todavía no hay proyectos asociados a tu empresa.')
+
+    titulo_sec('Crear un proyecto', 'El proyecto quedará vinculado a tu empresa')
+    tecnologias = tecnologias_catalogo()
+    opciones_tecnologias = {f'{t["nombre"]} · {t["id"]}':t['id'] for t in tecnologias}
+    with st.form('jtg_crear_proyecto_empresa', clear_on_submit=True):
+        nombre = st.text_input('Nombre del proyecto')
+        descripcion = st.text_area('Descripción del proyecto')
+        col1, col2 = st.columns(2)
+        with col1:
+            inicio = st.date_input('Fecha de inicio', value=date.today())
+        with col2:
+            fin = st.date_input('Fecha de finalización', value=date.today()+timedelta(days=90))
+        elegidas = st.multiselect('Tecnologías utilizadas', list(opciones_tecnologias),
+                                   help='Opcional: selecciona tecnologías ya registradas en Neo4j.')
+        if st.form_submit_button('Crear proyecto', type='primary', use_container_width=True):
+            if not nombre.strip():
+                st.error('El proyecto necesita un nombre.')
+            elif fin < inicio:
+                st.error('La fecha final no puede ser anterior a la inicial.')
+            else:
+                try:
+                    creado = crear_proyecto_empresa(empresa_id, {
+                        'nombre': nombre.strip(), 'descripcion': descripcion.strip(),
+                        'fecha_inicio':inicio.isoformat(), 'fecha_fin':fin.isoformat(),
+                    }, [opciones_tecnologias[t] for t in elegidas])
+                    st.toast(f'Proyecto registrado: {creado}')
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f'No se pudo crear el proyecto: {exc}')
+
+    if proyectos:
+        with st.expander('Editar un proyecto existente'):
+            opciones_proyecto = {f'{p["nombre"]} · {p["id"]}':p for p in proyectos}
+            elegido = st.selectbox('Proyecto a editar', list(opciones_proyecto), key='jtg_empresa_proyecto_editar')
+            actual = opciones_proyecto[elegido]
+            with st.form(f'jtg_form_proyecto_{actual["id"]}'):
+                nuevo_nombre = st.text_input('Nombre', value=actual.get('nombre') or '')
+                nueva_descripcion = st.text_area('Descripción', value=actual.get('descripcion') or '')
+                nuevo_inicio = st.text_input('Fecha de inicio (AAAA-MM-DD)',
+                                            value=str(actual.get('fecha_inicio') or ''))
+                nuevo_fin = st.text_input('Fecha de finalización (AAAA-MM-DD)',
+                                         value=str(actual.get('fecha_fin') or ''))
+                if st.form_submit_button('Guardar proyecto', type='primary'):
+                    try:
+                        if nuevo_inicio: date.fromisoformat(nuevo_inicio)
+                        if nuevo_fin: date.fromisoformat(nuevo_fin)
+                        resultado = editar_proyecto_empresa(empresa_id,actual['id'], {
+                            'nombre':nuevo_nombre.strip(),'descripcion':nueva_descripcion.strip(),
+                            'fecha_inicio':nuevo_inicio.strip(),'fecha_fin':nuevo_fin.strip(),
+                        })
+                        if resultado:
+                            st.toast('Proyecto actualizado.')
+                            st.rerun()
+                        else:
+                            st.error('El proyecto ya no existe o no está vinculado a esta empresa.')
+                    except ValueError as exc:
+                        st.error(f'Revisa los campos ingresados: {exc}')
+                    except Exception as exc:
+                        st.error(f'No se pudo guardar el proyecto: {exc}')
+
+
 def pagina_empresa(auth, seccion):
     empresa_id = auth['id']
     perfil = perfil_por_id('empresa', empresa_id)
@@ -998,7 +1108,9 @@ def pagina_empresa(auth, seccion):
         st.error('Este perfil empresarial ya no existe. Contacta al administrador.')
         return
     ofertas = [r['datos'] for r in ofertas_empresa(empresa_id)]
-    if seccion == 'Inicio':
+    if seccion == 'Mis proyectos':
+        pagina_proyectos_empresa(empresa_id)
+    elif seccion == 'Inicio':
         banner('Mi espacio · Empresa',f'Bienvenido, {perfil.get("nombre","empresa")}',
                'Publica vacantes, consulta postulaciones y descubre talento.')
         postulados = leer_datos('''
@@ -1176,7 +1288,7 @@ elif auth.get('rol') == 'profesional':
                   ('Buscar empleos','Oportunidades'),('Recomendaciones','Oportunidades'),('Mi red','Oportunidades')]
 elif auth.get('rol') == 'empresa':
     NAVEGACION = [('Inicio','Mi empresa'),('Mi empresa','Mi empresa'),
-                  ('Mis vacantes','Empleo'),('Candidatos','Empleo')]
+                  ('Mis proyectos','Mi empresa'),('Mis vacantes','Empleo'),('Candidatos','Empleo')]
 else:
     st.session_state.pop('jtg_auth', None)
     st.rerun()

@@ -136,3 +136,135 @@ def editar_vacante_propietaria(empresa_id, oferta_id, datos):
           o.ubicacion=$ubicacion, o.salario=$salario, o.tipo_contrato=$tipo_contrato
       RETURN o.id AS id
     ''', {'empresa_id':empresa_id,'oferta_id':oferta_id, **datos})
+
+# ---------------------------------------------------------------------------
+# Funciones nuevas: habilidades del profesional y proyectos de la empresa.
+# No se crean nuevas etiquetas en Neo4j, solo relaciones/nodos del modelo.
+# ---------------------------------------------------------------------------
+
+def habilidades_catalogo():
+    """Lista habilidades existentes, sin duplicarlas ni cambiar su esquema."""
+    return consulta('''
+        MATCH (h:Habilidad)
+        RETURN h.id AS id, h.nombre AS nombre
+        ORDER BY toLower(h.nombre), h.id
+    ''')
+
+
+def ids_habilidades_usuario(usuario_id):
+    return [fila['id'] for fila in consulta('''
+        MATCH (u:Usuario {id:$id})-[:POSEE]->(h:Habilidad)
+        RETURN DISTINCT h.id AS id
+    ''', {'id': usuario_id})]
+
+
+def actualizar_habilidades_profesional(usuario_id, habilidad_ids):
+    """Sincroniza solo relaciones POSEE de este usuario. No toca otras personas."""
+    ids = list(dict.fromkeys(habilidad_ids or []))
+    if ids:
+        disponibles = consulta('''
+            MATCH (h:Habilidad) WHERE h.id IN $ids RETURN h.id AS id
+        ''', {'ids': ids})
+        if {r['id'] for r in disponibles} != set(ids):
+            raise ValueError('Una de las habilidades seleccionadas ya no existe.')
+    resultado = db.ejecutar_consulta('''
+        MATCH (u:Usuario {id:$usuario_id})
+        OPTIONAL MATCH (u)-[r:POSEE]->(:Habilidad)
+        WITH u, collect(r) AS anteriores
+        FOREACH (rel IN anteriores | DELETE rel)
+        WITH u
+        OPTIONAL MATCH (h:Habilidad) WHERE h.id IN $habilidades
+        WITH u, collect(DISTINCT h) AS nuevas
+        FOREACH (h IN nuevas | MERGE (u)-[:POSEE]->(h))
+        RETURN u.id AS id, size(nuevas) AS total_habilidades
+    ''', {'usuario_id': usuario_id, 'habilidades': ids})
+    if not resultado:
+        raise ValueError('No se encontró el perfil profesional.')
+    return resultado[0]
+
+
+def proyectos_de_empresa(empresa_id):
+    """Solo proyectos asociados a la empresa mediante TIENE."""
+    return consulta('''
+        MATCH (e:Empresa {id:$empresa_id})-[:TIENE]->(p:Proyecto)
+        OPTIONAL MATCH (p)-[:USA_TECNOLOGIA]->(t:Tecnologia)
+        RETURN p.id AS id, p.nombre AS nombre, p.descripcion AS descripcion,
+               p.fecha_inicio AS fecha_inicio, p.fecha_fin AS fecha_fin,
+               collect(DISTINCT t.nombre) AS tecnologias
+        ORDER BY nombre
+    ''', {'empresa_id': empresa_id})
+
+
+def tecnologias_catalogo():
+    return consulta('''
+        MATCH (t:Tecnologia)
+        RETURN t.id AS id, t.nombre AS nombre
+        ORDER BY toLower(t.nombre), t.id
+    ''')
+
+
+def crear_proyecto_empresa(empresa_id, datos, tecnologia_ids=None):
+    """Crea un Proyecto de esa Empresa, vinculado con TIENE y USA_TECNOLOGIA.
+
+    Crea proyecto y relaciones en una sola escritura. El contador de IDs se
+    actualiza antes, igual que en las entidades originales del repositorio.
+    """
+    if not empresa_id:
+        raise ValueError('No hay empresa activa.')
+    if not (datos.get('nombre') or '').strip():
+        raise ValueError('Indica el nombre del proyecto.')
+    if not consulta('MATCH (e:Empresa {id:$id}) RETURN e.id AS id', {'id':empresa_id}):
+        raise ValueError('No existe la empresa seleccionada.')
+    ids = list(dict.fromkeys(tecnologia_ids or []))
+    if ids:
+        disponibles = consulta('''
+            MATCH (t:Tecnologia) WHERE t.id IN $ids RETURN t.id AS id
+        ''', {'ids': ids})
+        if {r['id'] for r in disponibles} != set(ids):
+            raise ValueError('Una tecnología seleccionada ya no existe.')
+    if datos.get('fecha_fin') and datos.get('fecha_inicio') and datos['fecha_fin'] < datos['fecha_inicio']:
+        raise ValueError('La fecha final no puede ser anterior a la inicial.')
+
+    proyecto_id = obtener_siguiente_id(entidad='Proyecto', prefijo='proy')
+    parametros = {
+        'empresa_id': empresa_id, 'id': proyecto_id,
+        'nombre': datos['nombre'].strip(),
+        'descripcion': (datos.get('descripcion') or '').strip(),
+        'fecha_inicio': datos.get('fecha_inicio') or '',
+        'fecha_fin': datos.get('fecha_fin') or '',
+        'tecnologias': ids,
+    }
+    resultado = db.ejecutar_consulta('''
+        MATCH (e:Empresa {id:$empresa_id})
+        CREATE (p:Proyecto {
+            id:$id, nombre:$nombre, descripcion:$descripcion,
+            fecha_inicio:$fecha_inicio, fecha_fin:$fecha_fin
+        })
+        MERGE (e)-[:TIENE]->(p)
+        WITH p
+        OPTIONAL MATCH (t:Tecnologia) WHERE t.id IN $tecnologias
+        WITH p, collect(DISTINCT t) AS tecnologias
+        FOREACH (t IN tecnologias | MERGE (p)-[:USA_TECNOLOGIA]->(t))
+        RETURN p.id AS id
+    ''', parametros)
+    if not resultado:
+        raise RuntimeError('No se pudo crear el proyecto empresarial.')
+    return resultado[0]['id']
+
+
+def editar_proyecto_empresa(empresa_id, proyecto_id, datos):
+    """Permite editar solo proyectos vinculados a la empresa iniciada."""
+    if not (datos.get('nombre') or '').strip():
+        raise ValueError('Indica el nombre del proyecto.')
+    if datos.get('fecha_fin') and datos.get('fecha_inicio') and datos['fecha_fin'] < datos['fecha_inicio']:
+        raise ValueError('La fecha final no puede ser anterior a la inicial.')
+    return db.ejecutar_consulta('''
+        MATCH (e:Empresa {id:$empresa_id})-[:TIENE]->(p:Proyecto {id:$proyecto_id})
+        SET p.nombre=$nombre, p.descripcion=$descripcion,
+            p.fecha_inicio=$fecha_inicio, p.fecha_fin=$fecha_fin
+        RETURN p.id AS id
+    ''', {'empresa_id': empresa_id, 'proyecto_id': proyecto_id,
+          'nombre': datos['nombre'].strip(),
+          'descripcion': (datos.get('descripcion') or '').strip(),
+          'fecha_inicio': datos.get('fecha_inicio') or '',
+          'fecha_fin': datos.get('fecha_fin') or ''})
