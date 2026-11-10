@@ -97,12 +97,3 @@ class OfertaLaboral:
         """
         params = {"o_id": oferta_id, "h_id": habilidad_id}
         return db.ejecutar_consulta(query, params)
-
-    def desvincular_usa_tecnologia(self, proyecto_id: str, tecnologia_id: str) -> List[Dict[str, Any]]:
-        """Elimina la relación: (:Proyecto)-[:USA_TECNOLOGIA]->(:Tecnologia)"""
-        query = """
-        MATCH (p:Proyecto {id: $p_id})-[r:USA_TECNOLOGIA]->(t:Tecnologia {id: $t_id})
-        DELETE r
-        """
-        params = {"p_id": proyecto_id, "t_id": tecnologia_id}
-        return db.ejecutar_consulta(query, params)
