@@ -16,7 +16,6 @@ class Proyecto:
             descripcion: $descripcion,
             fecha_inicio: $fecha_inicio,
             fecha_fin: $fecha_fin,
-            tecnologias: $tecnologias
         })
         RETURN p
         """
@@ -26,7 +25,6 @@ class Proyecto:
             "descripcion": descripcion,
             "fecha_inicio": fecha_inicio,
             "fecha_fin": fecha_fin,
-            "tecnologias": tecnologias or [],
         }
         return db.ejecutar_consulta(query, params)
     
@@ -48,8 +46,7 @@ class Proyecto:
         SET p.nombre = COALESCE($nombre, p.nombre),
             p.descripcion = COALESCE($descripcion, p.descripcion),
             p.fecha_inicio = COALESCE($fecha_inicio, p.fecha_inicio),
-            p.fecha_fin = COALESCE($fecha_fin, p.fecha_fin),
-            p.tecnologias = COALESCE($tecnologias, p.tecnologias)
+            p.fecha_fin = COALESCE($fecha_fin, p.fecha_fin)
         RETURN p
         """
         params = {
@@ -57,8 +54,7 @@ class Proyecto:
             "nombre": nombre,
             "descripcion": descripcion,
             "fecha_inicio": fecha_inicio,
-            "fecha_fin": fecha_fin,
-            "tecnologias": tecnologias,
+            "fecha_fin": fecha_fin
         }
         return db.ejecutar_consulta(query, params)
 
@@ -69,3 +65,37 @@ class Proyecto:
         DETACH DELETE p
         """
         return db.ejecutar_consulta(query, {"id": proyecto_id})
+    
+    def usa_tecnologia(
+            self,
+            proyecto_id: str,
+            tecnologia_id: str
+        ) -> List[Dict[str, Any]]:
+            """Crea la relación: (:Proyecto)-[:USA_TECNOLOGIA]->(:Tecnologia)"""
+            query = """
+            MATCH (p:Proyecto {id: $proyecto_id})
+            MATCH (t:Tecnologia {id: $tecnologia_id})
+            MERGE (p)-[r:USA_TECNOLOGIA]->(t)
+            RETURN p, r, t
+            """
+            params = {
+                "proyecto_id": proyecto_id,
+                "tecnologia_id": tecnologia_id
+            }
+            return db.ejecutar_consulta(query, params)
+    
+    def desvincular_tecnologia(
+            self,
+            proyecto_id: str,
+            tecnologia_id: str
+        ) -> List[Dict[str, Any]]:
+            """Elimina la relación: (:Proyecto)-[:USA_TECNOLOGIA]->(:Tecnologia)"""
+            query = """
+            MATCH (p:Proyecto {id: $proyecto_id})-[r:USA_TECNOLOGIA]->(t:Tecnologia {id: $tecnologia_id})
+            DELETE r
+            """
+            params = {
+                "proyecto_id": proyecto_id,
+                "tecnologia_id": tecnologia_id
+            }
+            return db.ejecutar_consulta(query, params)

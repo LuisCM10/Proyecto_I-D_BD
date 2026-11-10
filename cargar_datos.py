@@ -32,7 +32,6 @@ def poblar_base_datos():
     # Insertar Empresas
     for emp in EMPRESAS:
         nueva = empresa.crear(**emp)
-        print(f"Empresa creada: {nueva}")
         map_empresas.append(nueva[0]["e"]["id"])
     print(f"✓ {len(map_empresas)} Empresas creadas.")
 
