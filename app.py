@@ -40,7 +40,7 @@ load_dotenv()
 st.set_page_config(
     page_title="Job to go | Red profesional inteligente",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="locked",
 )
 
 st.markdown("""
@@ -1134,6 +1134,33 @@ except Exception as exc:
 if not st.session_state.get('jtg_auth'):
     pantalla_login()
     st.stop()
+
+# Mantener accesible el control para reabrir la barra lateral.
+# En la pantalla de inicio de sesion permanece oculta.
+st.markdown('''<style>
+[data-testid="stSidebarCollapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    top: .65rem !important;
+    left: .65rem !important;
+    z-index: 999999 !important;
+    pointer-events: auto !important;
+}
+[data-testid="stSidebarCollapsedControl"] button {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #f3f6ff !important;
+    background: #26385e !important;
+    border: 1px solid #637bcb !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,.3) !important;
+    pointer-events: auto !important;
+}
+[data-testid="stSidebarCollapseButton"] {visibility: visible !important;}
+</style>''', unsafe_allow_html=True)
 
 auth = st.session_state['jtg_auth']
 if auth.get('rol') == 'admin':
