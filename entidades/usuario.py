@@ -126,3 +126,48 @@ class Usuario:
         """
         params = {"usuario_id": usuario_id, "oferta_id": oferta_id}
         return db.ejecutar_consulta(query, params)
+    
+    def desvincular_conecta_con(self, usuario1_id: str, usuario2_id: str) -> List[Dict[str, Any]]:
+        """Elimina la relación: (:Usuario)-[:CONECTA_CON]->(:Usuario)"""
+        query = """
+        MATCH (u1:Usuario {id: $u1_id})-[r:CONECTA_CON]-(u2:Usuario {id: $u2_id})
+        DELETE r
+        """
+        params = {"u1_id": usuario1_id, "u2_id": usuario2_id}
+        return db.ejecutar_consulta(query, params)
+
+    def desvincular_trabaja_en(self, usuario_id: str, empresa_id: str) -> List[Dict[str, Any]]:
+        """Elimina la relación: (:Usuario)-[:TRABAJA_EN]->(:Empresa)"""
+        query = """
+        MATCH (u:Usuario {id: $u_id})-[r:TRABAJA_EN]->(e:Empresa {id: $e_id})
+        DELETE r
+        """
+        params = {"u_id": usuario_id, "e_id": empresa_id}
+        return db.ejecutar_consulta(query, params)
+
+    def desvincular_posee(self, usuario_id: str, habilidad_id: str) -> List[Dict[str, Any]]:
+        """Elimina la relación: (:Usuario)-[:POSEE]->(:Habilidad)"""
+        query = """
+        MATCH (u:Usuario {id: $u_id})-[r:POSEE]->(h:Habilidad {id: $h_id})
+        DELETE r
+        """
+        params = {"u_id": usuario_id, "h_id": habilidad_id}
+        return db.ejecutar_consulta(query, params)
+
+    def desvincular_participa_en(self, usuario_id: str, proyecto_id: str) -> List[Dict[str, Any]]:
+        """Elimina la relación: (:Usuario)-[:PARTICIPA_EN]->(:Proyecto)"""
+        query = """
+        MATCH (u:Usuario {id: $u_id})-[r:PARTICIPA_EN]->(p:Proyecto {id: $p_id})
+        DELETE r
+        """
+        params = {"u_id": usuario_id, "p_id": proyecto_id}
+        return db.ejecutar_consulta(query, params)
+
+    def desvincular_se_postula_a(self, usuario_id: str, oferta_id: str) -> List[Dict[str, Any]]:
+        """Elimina la relación: (:Usuario)-[:SE_POSTULA_A]->(:OfertaLaboral)"""
+        query = """
+        MATCH (u:Usuario {id: $u_id})-[r:SE_POSTULA_A]->(o:OfertaLaboral {id: $o_id})
+        DELETE r
+        """
+        params = {"u_id": usuario_id, "o_id": oferta_id}
+        return db.ejecutar_consulta(query, params)

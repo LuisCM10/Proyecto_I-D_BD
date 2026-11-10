@@ -92,3 +92,21 @@ class Empresa:
         """
         params = {"empresa_id": empresa_id, "proyecto_id": proyecto_id}
         return db.ejecutar_consulta(query, params)
+    
+    def desvincular_publica(self, empresa_id: str, oferta_id: str) -> List[Dict[str, Any]]:
+        """Elimina la relación: (:Empresa)-[:PUBLICA]->(:OfertaLaboral)"""
+        query = """
+        MATCH (e:Empresa {id: $e_id})-[r:PUBLICA]->(o:OfertaLaboral {id: $o_id})
+        DELETE r
+        """
+        params = {"e_id": empresa_id, "o_id": oferta_id}
+        return db.ejecutar_consulta(query, params)
+
+    def desvincular_tiene_proyecto(self, empresa_id: str, proyecto_id: str) -> List[Dict[str, Any]]:
+        """Elimina la relación: (:Empresa)-[:TIENE]->(:Proyecto)"""
+        query = """
+        MATCH (e:Empresa {id: $e_id})-[r:TIENE]->(p:Proyecto {id: $p_id})
+        DELETE r
+        """
+        params = {"e_id": empresa_id, "p_id": proyecto_id}
+        return db.ejecutar_consulta(query, params)
