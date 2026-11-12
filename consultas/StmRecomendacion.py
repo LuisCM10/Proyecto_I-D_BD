@@ -26,7 +26,7 @@ class SistemaRecomendacion:
         """
         query = """
         MATCH (u:Usuario {id: $u_id})-[:POSEE]->(h:Habilidad)<-[:REQUIERE_TENER]-(o:OfertaLaboral)<-[:PUBLICA]-(e:Empresa)
-        WHERE NOT EXISTS { MATCH (u)-[:SE_POSTULA_A|POSTULA_A]->(o) }
+        WHERE NOT EXISTS { MATCH (u)-[:SE_POSTULA_A]->(o) }
           AND coalesce(o.estado, 'Abierta') = 'Abierta'
           AND (o.fecha_cierre IS NULL OR toString(o.fecha_cierre) >= toString(date()))
         WITH o, e, count(h) AS habilidades_coincidentes, collect(h.nombre) AS habilidades_match
