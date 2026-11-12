@@ -25,8 +25,10 @@ class SistemaRecomendacion:
         y que la oferta requiere.
         """
         query = """
-        MATCH (u:Usuario {id: $u_id})-[:TIENE]->(h:Habilidad)<-[:REQUIERE_TENER]-(o:OfertaLaboral)<-[:PUBLICA]-(e:Empresa)
-        WHERE NOT (u)-[:SE_POSTULA_A]->(o)
+        MATCH (u:Usuario {id: $u_id})-[:POSEE]->(h:Habilidad)<-[:REQUIERE_TENER]-(o:OfertaLaboral)<-[:PUBLICA]-(e:Empresa)
+        WHERE NOT EXISTS { MATCH (u)-[:SE_POSTULA_A|POSTULA_A]->(o) }
+          AND coalesce(o.estado, 'Abierta') = 'Abierta'
+          AND (o.fecha_cierre IS NULL OR toString(o.fecha_cierre) >= toString(date()))
         WITH o, e, count(h) AS habilidades_coincidentes, collect(h.nombre) AS habilidades_match
         RETURN o.id AS oferta_id,
                 o.titulo AS titulo_oferta,
@@ -49,7 +51,7 @@ class SistemaRecomendacion:
         MATCH (u:Usuario)
         WHERE NOT (u)-[:PARTICIPA_EN]->(p)
         OPTIONAL MATCH (u)-[:TRABAJA_EN]->(e)
-        OPTIONAL MATCH (u)-[:TIENE]->(h:Habilidad)
+        OPTIONAL MATCH (u)-[:POSEE]->(h:Habilidad)
         WITH u, count(DISTINCT h) AS num_habilidades, count(e) AS pertenece_a_empresa
         RETURN u.id AS usuario_id,
                 u.nombre AS nombre,
